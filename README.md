@@ -15,5 +15,7 @@ This is achieved by leveraging the RoBERTa base Go Emotions model found on Huggi
 ## Where can I learn more about this project?
 
 Find the RoBERTa Go Emotions model link here (from HuggingFace)
+https://huggingface.co/SamLowe/roberta-base-go_emotions
 
 Find the Go Emotions dataset link here (from HuggingFace)
+https://huggingface.co/datasets/go_emotions
