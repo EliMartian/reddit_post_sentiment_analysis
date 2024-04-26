@@ -205,6 +205,10 @@ Due to the nature of binary discourse on r/CMV, people are generally either for 
 Post Sentiment is one of the following options {Positive/Neutral/Negative}
 """
 
+import pandas as pd
+from scipy.stats import chi2_contingency
+from scipy.stats import chisquare
+
 # Initialize the text classification pipeline for emotion analysis (Go emotions from Hugging Face)
 # (see link above)
 classifier = pipeline(task="text-classification", model="SamLowe/roberta-base-go_emotions", top_k=5)
@@ -242,7 +246,6 @@ emotion_sentiment_mapping = {
     'sadness': 'negative',
     'grief': 'negative',
     'disgust': 'negative',
-    'annoyance': 'negative'
 }
 
 # Initialize count var for batch logging progress
@@ -254,16 +257,38 @@ sentiment_frequency = {'positive': 0, 'negative': 0, 'neutral': 0}
 # Create a dictionary to store emotion frequencies for each sentiment category
 emotion_frequency = {'positive': {}, 'negative': {}, 'neutral': {}}
 
+def is_statistically_significant(sentiment_counts, sentiment_frequency):
+    # Calculate the sum of observed frequencies (ie how many times did the emotion show up across all types of posts)
+    observed_sum = sentiment_counts.sum()
+
+    # Calculate the total number of posts
+    total_posts = sum(sentiment_frequency.values())
+
+    # Calculate expected proportions based on post distribution
+    if total_posts > 0:
+        expected_proportions = np.array([sentiment_frequency[key] / total_posts for key in sentiment_frequency.keys()])
+        expected_counts = expected_proportions * observed_sum
+
+    # Perform chi-squared test
+    chi2_stat, p_val = chisquare(sentiment_counts, f_exp=expected_counts)
+
+    # Determine if the test is statistically significant based on the p-value
+    if p_val < 0.05:  # You can adjust the significance level (alpha) as needed
+        print(f"Expected counts would have been: {expected_counts}")
+        sig_expected_counts.append(expected_counts)
+        print(f"Actual counts were: {sentiment_counts}")
+        sig_actual_counts.append(sentiment_counts)
+        return True, chi2_stat, p_val
+    else:
+        return False, chi2_stat, p_val
+
 # Iterate over each row in the DataFrame
 for index, row in cmv_df.iterrows():
     # Log Progress every 200 batches
-    if (count > 0 and count % 200 == 0):
-        print(f"COUNT: {count}")
-        print(sentiment_frequency)
-        print(emotion_frequency)
-        print("")
+    if count % 200 == 0:
+      print(f"Count currently at: {count}")
 
-    # Process the post body for sentiment analysis ()
+    # Process the post body for sentiment analysis
     post_body = str(row['Body'])
 
     # Truncate post_body if it exceeds 512 characters
@@ -309,9 +334,49 @@ for index, row in cmv_df.iterrows():
         # increment our overall count that does batch logging
         count += 1
 
+# Define the sentiment categories in the desired order
+sentiment_categories = ['positive', 'negative', 'neutral']
 
-print(f"Total number of Reddit posts evaluated: {len(cmv_df)}");
-print("")
+# Define the complete list of emotions from the mapping
+all_emotions = list(emotion_sentiment_mapping.keys())
+
+# Initialize the contingency table with zeros
+contingency_table = np.zeros((len(sentiment_categories), len(all_emotions)), dtype=int)
+
+# Populate the contingency table with emotion frequencies
+for i, sentiment in enumerate(sentiment_categories):
+    for j, emotion in enumerate(all_emotions):
+        if emotion in emotion_frequency[sentiment]:
+            contingency_table[i, j] = emotion_frequency[sentiment][emotion]
+
+# Emotion of interest (column index)
+emotion_index = 0
+significance_results = []
+sig_expected_counts = []
+sig_actual_counts = []
+p_value_results = []
+
+# Extract all sentiment values for the specified emotion (column)
+for emotion in emotion_sentiment_mapping:
+  # print(emotion_index)
+  # print(emotion)
+  sentiment_counts = contingency_table[:, emotion_index]
+  # print(sentiment_counts)
+
+  if np.all(sentiment_counts >= 1):
+      is_significant, chi2_stat, p_val = is_statistically_significant(sentiment_counts, sentiment_frequency)
+
+      print(f"Is the difference statistically significant? for emotion : {emotion}")
+      if is_significant:
+        print("Yes, it was significant")
+        significance_results.append(emotion)
+        p_value_results.append(p_val)
+      else:
+        print("No, it was not significant")
+  else:
+      print(f"Not enough information to perform the chi-squared test for emotion: {emotion}")
+
+  emotion_index += 1
 
 print("Final Post Sentiment Distribution")
 print(sentiment_frequency)
@@ -320,6 +385,171 @@ print("")
 print("Final Comment Emotion Distribution for Posts")
 print(emotion_frequency)
 print("")
+
+# Plotting results
+import matplotlib.pyplot as plt
+# Plotting results for significantly significant emotions
+plt.figure(figsize=(12, 8))
+plt.bar(significance_results, p_value_results, color='green')
+plt.title('Statistically Significant Emotions with P-values')
+plt.xlabel('Emotion')
+plt.ylabel('P-value')
+plt.yscale('log')  # Use logarithmic scale for better visualization of p-values
+plt.xticks(rotation=45, ha='right')  # Rotate x-tick labels for better readability
+plt.axhline(0.05, color='red', linestyle='--', label='Significance Threshold (p = 0.05)')  # Add significance threshold line
+plt.legend()
+plt.show()
+
+# Calculate the difference between observed and expected counts
+difference = np.array(sig_actual_counts) - np.array(sig_expected_counts)
+
+# Flatten the difference array to a 1D array
+difference_flat = difference.flatten()
+print(difference_flat)
+
+# Define sentiments and corresponding indices for bar plotting
+sentiments = ['Positive', 'Negative', 'Neutral']
+indices = np.arange(len(significance_results) * len(sentiments))  # Indices for x-axis positions
+
+# Define colors based on the sign of the difference
+bar_colors = np.where(difference_flat > 0, 'green', 'red')
+
+# Plotting the bar graph
+plt.figure(figsize=(12, 8))
+bars = plt.bar(indices, difference_flat, color=bar_colors)
+
+# Add labels, title, and legend
+plt.xlabel('Emotion')
+plt.ylabel('Difference (Observed - Expected)')
+plt.title('Difference in Counts for Significant Emotions')
+# plt.xticks(indices, np.tile(significance_results, len(sentiments)), rotation=45, ha='right')  # Set x-axis labels
+emotions_repeated = np.repeat(significance_results, num_sentiments)
+plt.xticks(indices, emotions_repeated, rotation=75, ha='right')  # Set x-axis labels
+plt.axhline(0, color='black', linewidth=0.8, linestyle='--')  # Add horizontal line at y=0
+
+# Add annotations for significant differences
+for i, bar, diff in zip(indices, bars, difference_flat):
+    if np.abs(diff) > 0.05 * np.mean(sig_expected_counts):
+        plt.text(i, bar.get_height() + 10, 'Significant', ha='center', va='bottom', color='blue', weight='bold', rotation=45,)
+
+plt.tight_layout()
+plt.show()
+
+# # Initialize the text classification pipeline for emotion analysis (Go emotions from Hugging Face)
+# # (see link above)
+# classifier = pipeline(task="text-classification", model="SamLowe/roberta-base-go_emotions", top_k=5)
+
+# cmv_df = pd.read_csv('cmv_clean.csv')
+
+# # Define the mapping of emotions to sentiment categories
+# # From Go Emotions dataset (see link above)
+# emotion_sentiment_mapping = {
+#     'joy': 'positive',
+#     'optimism': 'positive',
+#     'amusement': 'positive',
+#     'love': 'positive',
+#     'excitement': 'positive',
+#     'admiration': 'positive',
+#     'relief': 'positive',
+#     'gratitude': 'positive',
+#     'pride': 'positive',
+#     'caring': 'positive',
+#     'approval': 'positive',
+#     'neutral': 'neutral',
+#     'surprise': 'neutral',
+#     'realization': 'neutral',
+#     'confusion': 'neutral',
+#     'curiosity': 'neutral',
+#     'disapproval': 'negative',
+#     'desire': 'negative',
+#     'remorse': 'negative',
+#     'disappointment': 'negative',
+#     'annoyance': 'negative',
+#     'nervousness': 'negative',
+#     'anger': 'negative',
+#     'fear': 'negative',
+#     'embarassment': 'negative',
+#     'sadness': 'negative',
+#     'grief': 'negative',
+#     'disgust': 'negative',
+#     'annoyance': 'negative'
+# }
+
+# # Initialize count var for batch logging progress
+# count = 0
+
+# # Create a dictionary to store sentiment frequencies
+# sentiment_frequency = {'positive': 0, 'negative': 0, 'neutral': 0}
+
+# # Create a dictionary to store emotion frequencies for each sentiment category
+# emotion_frequency = {'positive': {}, 'negative': {}, 'neutral': {}}
+
+# # Iterate over each row in the DataFrame
+# for index, row in cmv_df.iterrows():
+#     # Log Progress every 200 batches
+#     if (count > 0 and count % 200 == 0):
+#         print(f"COUNT: {count}")
+#         print(sentiment_frequency)
+#         print(emotion_frequency)
+#         print("")
+
+#     # Process the post body for sentiment analysis ()
+#     post_body = str(row['Body'])
+
+#     # Truncate post_body if it exceeds 512 characters
+#     post_body = post_body[:512]
+
+#     if post_body:
+#         # Analyze emotions of the post body
+#         emotions = classifier(post_body)
+
+#         # Make sure we have emotions for the post
+#         if emotions and len(emotions) > 0:
+#             # Grab the top emotion for the post body
+#             top_emotion_post = emotions[0][0]['label']
+#             if top_emotion_post in emotion_sentiment_mapping:
+#                 # Convert that top emotion into a sentiment (positive/neutral/negative)
+#                 # for later analysis
+#                 post_sentiment = emotion_sentiment_mapping[top_emotion_post]
+
+#                 # Update sentiment frequency of posts
+#                 sentiment_frequency[post_sentiment] += 1
+
+#         # Create our batch comments
+#         batch_comments = []
+#         for i in range(1, 6):
+#             comment_key = f'Comment {i}'
+#             # Truncate comments to first 512 characters
+#             row[comment_key] = str(row[comment_key])[:512]
+#             if isinstance(row[comment_key], str):
+#                 batch_comments.append(row[comment_key])
+
+#         # Process the comments for emotion analysis (using top 5 comments)
+#         if batch_comments:
+#             for comment in batch_comments:
+#                 # Grab the emotion with the highest probability rating
+#                 top_emotion_comment = classifier(comment)[0][0]['label']
+#                 if top_emotion_comment not in emotion_frequency[post_sentiment]:
+#                     # If the emotion does not exist, set freq to be 1 for the emotion
+#                     emotion_frequency[post_sentiment][top_emotion_comment] = 1
+#                 else:
+#                     # Otherwise increment the current count for the emotion
+#                     emotion_frequency[post_sentiment][top_emotion_comment] += 1
+
+#         # increment our overall count that does batch logging
+#         count += 1
+
+
+# print(f"Total number of Reddit posts evaluated: {len(cmv_df)}");
+# print("")
+
+# print("Final Post Sentiment Distribution")
+# print(sentiment_frequency)
+# print("")
+
+# print("Final Comment Emotion Distribution for Posts")
+# print(emotion_frequency)
+# print("")
 
 """# Overall Post Sentiment Distribution
 
@@ -376,4 +606,52 @@ ax.set_xticklabels(emotion_types, rotation=80)
 ax.legend(['Positive', 'Negative', 'Neutral'])
 
 # Show the plot
+plt.show()
+
+"""**Positive Reddit Posts Emotion Distribution**"""
+
+import matplotlib.pyplot as plt
+
+# Data for positive sentiment emotions
+positive_emotions = emotion_frequency['positive']
+
+# Plotting the bar chart for positive sentiment emotions
+plt.figure(figsize=(10, 6))
+plt.bar(positive_emotions.keys(), positive_emotions.values(), color='green')
+plt.title('Emotion Frequencies for Positive Sentiment')
+plt.xlabel('Emotion Types')
+plt.ylabel('Frequency')
+plt.xticks(rotation=45)
+plt.show()
+
+"""**Neutral Reddit Posts Emotion Distribution**"""
+
+import matplotlib.pyplot as plt
+
+# Data for neutral sentiment emotions
+neutral_emotions = emotion_frequency['neutral']
+
+# Plotting the bar chart for neutral sentiment emotions
+plt.figure(figsize=(10, 6))
+plt.bar(neutral_emotions.keys(), neutral_emotions.values(), color='blue')
+plt.title('Emotion Frequencies for Neutral Sentiment')
+plt.xlabel('Emotion Types')
+plt.ylabel('Frequency')
+plt.xticks(rotation=45)
+plt.show()
+
+"""**Negative Reddit Posts Emotion Distribution**"""
+
+import matplotlib.pyplot as plt
+
+# Data for negative sentiment emotions
+negative_emotions = emotion_frequency['negative']
+
+# Plotting the bar chart for negative sentiment emotions
+plt.figure(figsize=(10, 6))
+plt.bar(negative_emotions.keys(), negative_emotions.values(), color='red')
+plt.title('Emotion Frequencies for Negative Sentiment')
+plt.xlabel('Emotion Types')
+plt.ylabel('Frequency')
+plt.xticks(rotation=45)
 plt.show()
