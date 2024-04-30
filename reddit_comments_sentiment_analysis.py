@@ -34,6 +34,7 @@ Find the Go Emotions dataset [link here](https://huggingface.co/datasets/go_emot
 import pandas as pd
 import numpy as np
 from transformers import pipeline
+import matplotlib.pyplot as plt
 
 """# Reddit: r/CMV example
 
@@ -111,7 +112,7 @@ for sentence in sentences:
 
     print(filtered_labels)
 
-"""# Aggregating Overall Comment Emotions"""
+"""# Aggregating Overall Human Comment Emotions"""
 
 import pandas as pd
 from transformers import pipeline
@@ -126,56 +127,290 @@ classifier = pipeline(task="text-classification", model="SamLowe/roberta-base-go
 emotion_frequency = {}
 
 # Initialize counter and total_count to keep track of progress while progressing through batches
-counter = 0
+count = 0
 total_count = len(cmv_df)
 
 for index, row in cmv_df.iterrows():
-    batch_comments = []
-
     # Collect comments for batch processing
     for i in range(1, 6):
         comment = row[f'Comment {i}']
-        # Ensure comment is not NaN and less than the max tokens necessitated by model
-        if isinstance(comment, str) and len(comment) < 512:
-            batch_comments.append(comment)
+        if isinstance(comment, str):  # Check if comment is a string
+            comment = comment[:512]  # Limit comment length if needed
+            output = classifier(comment)
+            top_emotion_comment = output[0][0]['label']
 
-    # Process comments in batches
-    if len(batch_comments) > 0:
-        outputs = classifier(batch_comments)
+            # Update emotion frequency dictionary
+            if top_emotion_comment not in emotion_frequency:
+                emotion_frequency[top_emotion_comment] = 1
+            else:
+                emotion_frequency[top_emotion_comment] += 1
 
-        for output in outputs:
-            # Grab emotion labels for each output
-            emotion_labels = [label['label'] for label in output]
-            for emotion_label in emotion_labels:
-              # Initialize the emotion to have frequency 1 if not found
-              if emotion_label not in emotion_frequency:
-                  emotion_frequency[emotion_label] = 1
-              else:
-                  # Otherwise increase the current value
-                  emotion_frequency[emotion_label] += 1
+    # Increment count after processing a row
+    count += 1
 
-    # Print out progress every 200 batches
-    if (counter > 0 and counter % 200 == 0):
-        print(f"Current count is: {counter} / {total_count}")
+    # Print out progress every 10 rows processed
+    if count > 0 and count % 100 == 0:
+        print(f"Current number of posts analyzed: {count} / {total_count}")
         print("Emotion Frequencies:")
-        for emotion, count in emotion_frequency.items():
-            print(f"{emotion}: {count}")
-        print("")
+        for emotion, freq in emotion_frequency.items():
+            print(f"{emotion}: {freq}")
+        print("")  # Print an empty line for separation
 
-    counter += 1
 
 # Print the final resulting emotion frequencies
+print("")
 print("Final Emotion Frequencies:")
 for emotion, count in emotion_frequency.items():
     print(f"{emotion}: {count}")
 
-"""# Visualize Emotions of all Comments on r/CMV"""
+
+# Final Emotion Frequencies:
+# neutral: 2583
+# approval: 305
+# confusion: 218
+# curiosity: 427
+# annoyance: 116
+# amusement: 51
+# love: 19
+# disapproval: 268
+# disappointment: 33
+# admiration: 50
+# remorse: 11
+# surprise: 7
+# nervousness: 2
+# optimism: 12
+# realization: 17
+# joy: 17
+# anger: 11
+# caring: 20
+# desire: 8
+# disgust: 7
+# sadness: 11
+# gratitude: 12
+# embarrassment: 3
+# fear: 10
+# excitement: 1
+
+"""# Aggregating  GPT Response Emotions"""
+
+df_gpt = pd.read_csv('GPT*.csv')
+# Create a new map to store emotion frequencies
+emotion_frequency_gpt = {}
+
+count = 0
+
+for index, row in df_gpt.iterrows():
+    batch_comments = []
+
+    comment = row[f'Query']
+    if isinstance(comment, str):
+        comment = comment[:512]
+        # print(f"Count: {count}")
+        # print(comment)
+        # print("")
+        # print("Response")
+        response = row[f'Response']
+        if isinstance(response, str):
+            response = response[:512]
+            # print(response)
+
+            output = classifier(response)
+            # print(output)
+            # Grab emotion labels for each output
+            top_emotion_comment = output[0][0]['label']
+            # Update emotion frequency dictionary
+            if top_emotion_comment not in emotion_frequency_gpt:
+                emotion_frequency_gpt[top_emotion_comment] = 1
+            else:
+                emotion_frequency_gpt[top_emotion_comment] += 1
+    count += 1
+
+    if count > 0 and (count / 5) % 100 == 0:
+        print(f"Current number of posts analyzed: {int(count / 5)} / {total_count}")
+        print("Emotion Frequencies:")
+        for emotion, freq in emotion_frequency_gpt.items():
+            print(f"{emotion}: {freq}")
+        print("")  # Print an empty line for separation
+
+# Print the final resulting emotion frequencies
+print("Final Emotion Frequencies:")
+for emotion, count in emotion_frequency_gpt.items():
+    print(f"{emotion}: {count}")
+
+
+# Final Emotion Frequencies:
+# caring: 100
+# approval: 1081
+# neutral: 1471
+# sadness: 7
+# admiration: 82
+# disapproval: 102
+# curiosity: 122
+# excitement: 7
+# optimism: 29
+# disappointment: 15
+# confusion: 11
+# embarrassment: 1
+# joy: 25
+# surprise: 1
+# realization: 15
+# love: 3
+# remorse: 1
+# fear: 1
+# annoyance: 5
+# desire: 1
+
+"""# Aggregating Llama Emotions"""
+
+df_ll = pd.read_csv('LL*.csv')
+# Create a new map to store emotion frequencies
+emotion_frequency_ll = {}
+
+count = 0
+
+for index, row in df_ll.iterrows():
+    batch_comments = []
+
+    comment = row[f'Query']
+    if isinstance(comment, str):
+        comment = comment[:512]
+        # print(f"Count: {count}")
+        # print(comment)
+        # print("")
+        # print("Response")
+        response = row[f'Response']
+        if isinstance(response, str):
+            response = response[:512]
+            # print(response)
+
+            output = classifier(response)
+            # print(output)
+            # Grab emotion labels for each output
+            top_emotion_comment = output[0][0]['label']
+            # Update emotion frequency dictionary
+            if top_emotion_comment not in emotion_frequency_ll:
+                emotion_frequency_ll[top_emotion_comment] = 1
+            else:
+                emotion_frequency_ll[top_emotion_comment] += 1
+    count += 1
+
+    if count > 0 and (count / 5) % 100 == 0:
+        print(f"Current number of posts analyzed: {int(count / 5)} / {total_count}")
+        print("Emotion Frequencies:")
+        for emotion, freq in emotion_frequency_ll.items():
+            print(f"{emotion}: {freq}")
+        print("")  # Print an empty line for separation
+
+# Print the final resulting emotion frequencies
+print("Final Emotion Frequencies:")
+for emotion, count in emotion_frequency_ll.items():
+    print(f"{emotion}: {count}")
+
+# Final Emotion Frequencies:
+# neutral: 2266
+# approval: 440
+# desire: 4
+# fear: 1
+# admiration: 59
+# curiosity: 13
+# joy: 10
+# love: 7
+# caring: 40
+# excitement: 1
+# annoyance: 30
+# disapproval: 81
+# disappointment: 33
+# confusion: 7
+# embarrassment: 1
+# remorse: 2
+# optimism: 1
+# amusement: 3
+# surprise: 1
+# disgust: 1
+# nervousness: 3
+# sadness: 2
+# pride: 1
+# realization: 2
+# gratitude: 1
+
+"""# Aggregating Zephyr"""
+
+df_ze = pd.read_csv('ZE*.csv')
+# Create a new map to store emotion frequencies
+emotion_frequency_ze = {}
+
+count = 0
+
+for index, row in df_ze.iterrows():
+    batch_comments = []
+
+    comment = row[f'Query']
+    if isinstance(comment, str):
+        comment = comment[:512]
+        # print(f"Count: {count}")
+        # print(comment)
+        # print("")
+        # print("Response")
+        response = row[f'Response']
+        if isinstance(response, str):
+            response = response[:512]
+            # print(response)
+
+            output = classifier(response)
+            # print(output)
+            # Grab emotion labels for each output
+            top_emotion_comment = output[0][0]['label']
+            # Update emotion frequency dictionary
+            if top_emotion_comment not in emotion_frequency_ze:
+                emotion_frequency_ze[top_emotion_comment] = 1
+            else:
+                emotion_frequency_ze[top_emotion_comment] += 1
+    count += 1
+
+    if count > 0 and (count / 5) % 100 == 0:
+        print(f"Current number of posts analyzed: {int(count / 5)} / {total_count}")
+        print("Emotion Frequencies:")
+        for emotion, freq in emotion_frequency_ze.items():
+            print(f"{emotion}: {freq}")
+        print("")  # Print an empty line for separation
+
+# Print the final resulting emotion frequencies
+print("Final Emotion Frequencies:")
+for emotion, count in emotion_frequency_ze.items():
+    print(f"{emotion}: {count}")
+
+
+# Final Emotion Frequencies:
+# neutral: 2048
+# disapproval: 50
+# optimism: 15
+# approval: 712
+# admiration: 59
+# caring: 59
+# disappointment: 15
+# joy: 29
+# nervousness: 5
+# curiosity: 16
+# confusion: 34
+# desire: 8
+# realization: 11
+# fear: 3
+# love: 2
+# sadness: 14
+# annoyance: 9
+# anger: 2
+# excitement: 2
+# gratitude: 3
+# remorse: 5
+# amusement: 1
+
+"""# Visualize Emotions of all Human Comments on r/CMV"""
 
 import matplotlib.pyplot as plt
 
 # Extract emotion labels and corresponding frequencies from our final list
-emotions = list(emotion_frequency.keys())
-frequencies = list(emotion_frequency.values())
+emotions = list(emotion_frequency_gpt.keys())
+frequencies = list(emotion_frequency_gpt.values())
 
 # Bar plot
 plt.figure(figsize=(10, 6))
@@ -200,7 +435,71 @@ Due to the nature of binary discourse on r/CMV, people are generally either for 
 
 **Logical Reasoning and Realization** On r/CMV, it is common to explain and think through the logic of an argument or perspective on a topic. This likely leads to the 'realization' emotion being significantly higher than the other emotions not mentioned above (ie compared to joy, surprise, relief, etc.).
 
-# Aggregating Emotions based on Post Sentiment
+# Visualization of GPT Emotions
+"""
+
+import matplotlib.pyplot as plt
+
+# Extract emotion labels and corresponding frequencies from our final list
+emotions = list(emotion_frequency_gpt.keys())
+frequencies = list(emotion_frequency_gpt.values())
+
+# Bar plot
+plt.figure(figsize=(10, 6))
+plt.bar(emotions, frequencies, color='skyblue')
+plt.xlabel('Emotion')
+plt.ylabel('Frequency')
+plt.title('Emotion Frequencies')
+# Rotate x-axis labels for better readability
+plt.xticks(rotation=90)
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+# Adjust layout to prevent label clips
+plt.tight_layout()
+plt.show()
+
+"""# Visualization of Llama Emotions"""
+
+import matplotlib.pyplot as plt
+
+# Extract emotion labels and corresponding frequencies from our final list
+emotions = list(emotion_frequency_ll.keys())
+frequencies = list(emotion_frequency_ll.values())
+
+# Bar plot
+plt.figure(figsize=(10, 6))
+plt.bar(emotions, frequencies, color='skyblue')
+plt.xlabel('Emotion')
+plt.ylabel('Frequency')
+plt.title('Emotion Frequencies')
+# Rotate x-axis labels for better readability
+plt.xticks(rotation=90)
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+# Adjust layout to prevent label clips
+plt.tight_layout()
+plt.show()
+
+"""# Visualization of Zephyr Emotions"""
+
+import matplotlib.pyplot as plt
+
+# Extract emotion labels and corresponding frequencies from our final list
+emotions = list(emotion_frequency_ze.keys())
+frequencies = list(emotion_frequency_ze.values())
+
+# Bar plot
+plt.figure(figsize=(10, 6))
+plt.bar(emotions, frequencies, color='skyblue')
+plt.xlabel('Emotion')
+plt.ylabel('Frequency')
+plt.title('Emotion Frequencies')
+# Rotate x-axis labels for better readability
+plt.xticks(rotation=90)
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+# Adjust layout to prevent label clips
+plt.tight_layout()
+plt.show()
+
+"""# Aggregating Emotions based on Post Sentiment
 
 Post Sentiment is one of the following options {Positive/Neutral/Negative}
 """
@@ -285,8 +584,15 @@ def is_statistically_significant(sentiment_counts, sentiment_frequency):
 # Iterate over each row in the DataFrame
 for index, row in cmv_df.iterrows():
     # Log Progress every 200 batches
-    if count % 200 == 0:
-      print(f"Count currently at: {count}")
+    if count % 100 == 0:
+      print(f"Number of posts analyzed: {count}")
+      print(" Post Sentiment Distribution")
+      print(sentiment_frequency)
+      print("")
+
+      print(" Comment Emotion Distribution for Posts")
+      print(emotion_frequency)
+      print("")
 
     # Process the post body for sentiment analysis
     post_body = str(row['Body'])
@@ -386,6 +692,79 @@ print("Final Comment Emotion Distribution for Posts")
 print(emotion_frequency)
 print("")
 
+# Final Results to prevent 1 hour + compute time
+# Final Post Sentiment Distribution
+# {'positive': 124, 'negative': 140, 'neutral': 580}
+
+# Final Comment Emotion Distribution for Posts
+# {'positive': {'neutral': 336, 'curiosity': 65, 'disapproval': 43, 'confusion': 26, 'love': 6, 'remorse': 4, 'approval': 61, 'annoyance': 20, 'amusement': 6, 'gratitude': 4, 'realization': 3, 'anger': 7, 'admiration': 22, 'caring': 1, 'desire': 1, 'fear': 1, 'joy': 5, 'disappointment': 6, 'sadness': 2, 'optimism': 1}, 'negative': {'neutral': 409, 'approval': 51, 'confusion': 35, 'disappointment': 11, 'amusement': 10, 'curiosity': 77, 'disapproval': 43, 'remorse': 1, 'joy': 2, 'anger': 1, 'desire': 5, 'caring': 10, 'sadness': 5, 'annoyance': 22, 'optimism': 2, 'realization': 3, 'admiration': 5, 'gratitude': 3, 'fear': 1, 'love': 2, 'nervousness': 1, 'disgust': 1}, 'neutral': {'neutral': 1839, 'approval': 193, 'confusion': 157, 'curiosity': 285, 'annoyance': 74, 'amusement': 35, 'love': 11, 'disapproval': 182, 'admiration': 23, 'surprise': 7, 'nervousness': 1, 'optimism': 9, 'realization': 11, 'disappointment': 16, 'caring': 9, 'disgust': 6, 'anger': 3, 'remorse': 6, 'gratitude': 5, 'joy': 10, 'sadness': 4, 'embarrassment': 3, 'fear': 8, 'desire': 2, 'excitement': 1}}
+
+
+# Is the difference statistically significant? for emotion : joy
+# No, it was not significant
+# Is the difference statistically significant? for emotion : optimism
+# No, it was not significant
+# Is the difference statistically significant? for emotion : amusement
+# No, it was not significant
+# Is the difference statistically significant? for emotion : love
+# No, it was not significant
+# Not enough information to perform the chi-squared test for emotion: excitement
+# Expected counts would have been: [ 7.34597156  8.29383886 34.36018957]
+# Actual counts were: [22  5 23]
+# Is the difference statistically significant? for emotion : admiration
+# Yes, it was significant
+# Not enough information to perform the chi-squared test for emotion: relief
+# Is the difference statistically significant? for emotion : gratitude
+# No, it was not significant
+# Not enough information to perform the chi-squared test for emotion: pride
+# Expected counts would have been: [ 2.93838863  3.31753555 13.74407583]
+# Actual counts were: [ 1 10  9]
+# Is the difference statistically significant? for emotion : caring
+# Yes, it was significant
+# Expected counts would have been: [ 44.81042654  50.59241706 209.5971564 ]
+# Actual counts were: [ 61  51 193]
+# Is the difference statistically significant? for emotion : approval
+# Yes, it was significant
+# Expected counts would have been: [ 379.63981043  428.62559242 1775.73459716]
+# Actual counts were: [ 336  409 1839]
+# Is the difference statistically significant? for emotion : neutral
+# Yes, it was significant
+# Not enough information to perform the chi-squared test for emotion: surprise
+# Is the difference statistically significant? for emotion : realization
+# No, it was not significant
+# Is the difference statistically significant? for emotion : confusion
+# No, it was not significant
+# Is the difference statistically significant? for emotion : curiosity
+# No, it was not significant
+# Is the difference statistically significant? for emotion : disapproval
+# No, it was not significant
+# Expected counts would have been: [1.17535545 1.32701422 5.49763033]
+# Actual counts were: [1 5 2]
+# Is the difference statistically significant? for emotion : desire
+# Yes, it was significant
+# Is the difference statistically significant? for emotion : remorse
+# No, it was not significant
+# Expected counts would have been: [ 4.84834123  5.47393365 22.67772512]
+# Actual counts were: [ 6 11 16]
+# Is the difference statistically significant? for emotion : disappointment
+# Yes, it was significant
+# Is the difference statistically significant? for emotion : annoyance
+# No, it was not significant
+# Not enough information to perform the chi-squared test for emotion: nervousness
+# Expected counts would have been: [1.61611374 1.82464455 7.55924171]
+# Actual counts were: [7 1 3]
+# Is the difference statistically significant? for emotion : anger
+# Yes, it was significant
+# Is the difference statistically significant? for emotion : fear
+# No, it was not significant
+# Not enough information to perform the chi-squared test for emotion: embarassment
+# Expected counts would have been: [1.61611374 1.82464455 7.55924171]
+# Actual counts were: [2 5 4]
+# Is the difference statistically significant? for emotion : sadness
+# Yes, it was significant
+# Not enough information to perform the chi-squared test for emotion: grief
+# Not enough information to perform the chi-squared test for emotion: disgust
+
 # Plotting results
 import matplotlib.pyplot as plt
 # Plotting results for significantly significant emotions
@@ -434,122 +813,6 @@ for i, bar, diff in zip(indices, bars, difference_flat):
 
 plt.tight_layout()
 plt.show()
-
-# # Initialize the text classification pipeline for emotion analysis (Go emotions from Hugging Face)
-# # (see link above)
-# classifier = pipeline(task="text-classification", model="SamLowe/roberta-base-go_emotions", top_k=5)
-
-# cmv_df = pd.read_csv('cmv_clean.csv')
-
-# # Define the mapping of emotions to sentiment categories
-# # From Go Emotions dataset (see link above)
-# emotion_sentiment_mapping = {
-#     'joy': 'positive',
-#     'optimism': 'positive',
-#     'amusement': 'positive',
-#     'love': 'positive',
-#     'excitement': 'positive',
-#     'admiration': 'positive',
-#     'relief': 'positive',
-#     'gratitude': 'positive',
-#     'pride': 'positive',
-#     'caring': 'positive',
-#     'approval': 'positive',
-#     'neutral': 'neutral',
-#     'surprise': 'neutral',
-#     'realization': 'neutral',
-#     'confusion': 'neutral',
-#     'curiosity': 'neutral',
-#     'disapproval': 'negative',
-#     'desire': 'negative',
-#     'remorse': 'negative',
-#     'disappointment': 'negative',
-#     'annoyance': 'negative',
-#     'nervousness': 'negative',
-#     'anger': 'negative',
-#     'fear': 'negative',
-#     'embarassment': 'negative',
-#     'sadness': 'negative',
-#     'grief': 'negative',
-#     'disgust': 'negative',
-#     'annoyance': 'negative'
-# }
-
-# # Initialize count var for batch logging progress
-# count = 0
-
-# # Create a dictionary to store sentiment frequencies
-# sentiment_frequency = {'positive': 0, 'negative': 0, 'neutral': 0}
-
-# # Create a dictionary to store emotion frequencies for each sentiment category
-# emotion_frequency = {'positive': {}, 'negative': {}, 'neutral': {}}
-
-# # Iterate over each row in the DataFrame
-# for index, row in cmv_df.iterrows():
-#     # Log Progress every 200 batches
-#     if (count > 0 and count % 200 == 0):
-#         print(f"COUNT: {count}")
-#         print(sentiment_frequency)
-#         print(emotion_frequency)
-#         print("")
-
-#     # Process the post body for sentiment analysis ()
-#     post_body = str(row['Body'])
-
-#     # Truncate post_body if it exceeds 512 characters
-#     post_body = post_body[:512]
-
-#     if post_body:
-#         # Analyze emotions of the post body
-#         emotions = classifier(post_body)
-
-#         # Make sure we have emotions for the post
-#         if emotions and len(emotions) > 0:
-#             # Grab the top emotion for the post body
-#             top_emotion_post = emotions[0][0]['label']
-#             if top_emotion_post in emotion_sentiment_mapping:
-#                 # Convert that top emotion into a sentiment (positive/neutral/negative)
-#                 # for later analysis
-#                 post_sentiment = emotion_sentiment_mapping[top_emotion_post]
-
-#                 # Update sentiment frequency of posts
-#                 sentiment_frequency[post_sentiment] += 1
-
-#         # Create our batch comments
-#         batch_comments = []
-#         for i in range(1, 6):
-#             comment_key = f'Comment {i}'
-#             # Truncate comments to first 512 characters
-#             row[comment_key] = str(row[comment_key])[:512]
-#             if isinstance(row[comment_key], str):
-#                 batch_comments.append(row[comment_key])
-
-#         # Process the comments for emotion analysis (using top 5 comments)
-#         if batch_comments:
-#             for comment in batch_comments:
-#                 # Grab the emotion with the highest probability rating
-#                 top_emotion_comment = classifier(comment)[0][0]['label']
-#                 if top_emotion_comment not in emotion_frequency[post_sentiment]:
-#                     # If the emotion does not exist, set freq to be 1 for the emotion
-#                     emotion_frequency[post_sentiment][top_emotion_comment] = 1
-#                 else:
-#                     # Otherwise increment the current count for the emotion
-#                     emotion_frequency[post_sentiment][top_emotion_comment] += 1
-
-#         # increment our overall count that does batch logging
-#         count += 1
-
-
-# print(f"Total number of Reddit posts evaluated: {len(cmv_df)}");
-# print("")
-
-# print("Final Post Sentiment Distribution")
-# print(sentiment_frequency)
-# print("")
-
-# print("Final Comment Emotion Distribution for Posts")
-# print(emotion_frequency)
-# print("")
 
 """# Overall Post Sentiment Distribution
 
@@ -654,4 +917,909 @@ plt.title('Emotion Frequencies for Negative Sentiment')
 plt.xlabel('Emotion Types')
 plt.ylabel('Frequency')
 plt.xticks(rotation=45)
+plt.show()
+
+"""# LLM Emotion Distribution as a Function of Post Sentiment
+
+GPT
+"""
+
+import pandas as pd
+from scipy.stats import chi2_contingency
+from scipy.stats import chisquare
+
+# Initialize the text classification pipeline for emotion analysis (Go emotions from Hugging Face)
+# (see link above)
+classifier = pipeline(task="text-classification", model="SamLowe/roberta-base-go_emotions", top_k=5)
+
+cmv_df = pd.read_csv('GPT*.csv')
+
+# Define the mapping of emotions to sentiment categories
+# From Go Emotions dataset (see link above)
+emotion_sentiment_mapping = {
+    'joy': 'positive',
+    'optimism': 'positive',
+    'amusement': 'positive',
+    'love': 'positive',
+    'excitement': 'positive',
+    'admiration': 'positive',
+    'relief': 'positive',
+    'gratitude': 'positive',
+    'pride': 'positive',
+    'caring': 'positive',
+    'approval': 'positive',
+    'neutral': 'neutral',
+    'surprise': 'neutral',
+    'realization': 'neutral',
+    'confusion': 'neutral',
+    'curiosity': 'neutral',
+    'disapproval': 'negative',
+    'desire': 'negative',
+    'remorse': 'negative',
+    'disappointment': 'negative',
+    'annoyance': 'negative',
+    'nervousness': 'negative',
+    'anger': 'negative',
+    'fear': 'negative',
+    'embarassment': 'negative',
+    'sadness': 'negative',
+    'grief': 'negative',
+    'disgust': 'negative',
+}
+
+# Initialize count var for batch logging progress
+count = 0
+
+# Create a dictionary to store sentiment frequencies
+sentiment_frequency = {'positive': 0, 'negative': 0, 'neutral': 0}
+
+# Create a dictionary to store emotion frequencies for each sentiment category
+emotion_frequency = {'positive': {}, 'negative': {}, 'neutral': {}}
+
+def is_statistically_significant(sentiment_counts, sentiment_frequency):
+    # Calculate the sum of observed frequencies (ie how many times did the emotion show up across all types of posts)
+    observed_sum = sentiment_counts.sum()
+
+    # Calculate the total number of posts
+    total_posts = sum(sentiment_frequency.values())
+
+    # Calculate expected proportions based on post distribution
+    if total_posts > 0:
+        expected_proportions = np.array([sentiment_frequency[key] / total_posts for key in sentiment_frequency.keys()])
+        expected_counts = expected_proportions * observed_sum
+
+        # print(f"Expected counts would have been: {expected_counts}")
+        # print(f"Actual counts were: {sentiment_counts}")
+
+    # Perform chi-squared test
+    chi2_stat, p_val = chisquare(sentiment_counts, f_exp=expected_counts)
+
+    # Determine if the test is statistically significant based on the p-value
+    if p_val < 0.05:  # You can adjust the significance level (alpha) as needed
+        print(f"Expected counts would have been: {expected_counts}")
+        sig_expected_counts.append(expected_counts)
+        print(f"Actual counts were: {sentiment_counts}")
+        sig_actual_counts.append(sentiment_counts)
+        return True, chi2_stat, p_val
+    else:
+        return False, chi2_stat, p_val
+
+# Iterate over each row in the DataFrame
+for index, row in cmv_df.iterrows():
+    # Log Progress every 200 batches
+    # print(count)
+    # if (count / 5) > 199:
+    #     break;
+    if (count / 5) % 25 == 0:
+      print(f"Number of Posts analyzed: {int(count / 5)}")
+      print(" Post Sentiment Distribution")
+      print(sentiment_frequency)
+      print("")
+
+    #   print(" Comment Emotion Distribution for Posts")
+    #   print(emotion_frequency)
+    #   print("")
+
+    # Process the post body for sentiment analysis
+    post_body = str(row['Query'])
+
+    # Truncate post_body if it exceeds 512 characters
+    post_body = post_body[:512]
+
+    if post_body:
+        # print(post_body)
+        # print("")
+        # Analyze emotions of the post body
+        emotions = classifier(post_body)
+
+        # Make sure we have emotions for the post
+        if emotions and len(emotions) > 0 and count % 5 == 0:
+            # print(post_body)
+            # Grab the top emotion for the post body
+            top_emotion_post = emotions[0][0]['label']
+            # print("")
+            # print(top_emotion_post)
+            # print("")
+
+            # print(top_emotion_post)
+            # print("")
+            # print("")
+            if top_emotion_post in emotion_sentiment_mapping:
+                # Convert that top emotion into a sentiment (positive/neutral/negative)
+                # for later analysis
+                post_sentiment = emotion_sentiment_mapping[top_emotion_post]
+
+                # Update sentiment frequency of posts
+                sentiment_frequency[post_sentiment] += 1
+            # print(sentiment_frequency)
+
+        response = row[f'Response']
+        if isinstance(response, str):
+            response = response[:512]
+            # print(response)
+
+            output = classifier(response)
+            # print(output)
+            # Grab emotion labels for each output
+            top_emotion_comment = output[0][0]['label']
+            # Update emotion frequency dictionary
+            if top_emotion_comment not in emotion_frequency[post_sentiment]:
+                # If the emotion does not exist, set freq to be 1 for the emotion
+                emotion_frequency[post_sentiment][top_emotion_comment] = 1
+            else:
+                # Otherwise increment the current count for the emotion
+                emotion_frequency[post_sentiment][top_emotion_comment] += 1
+
+        # increment our overall count that does batch logging
+        count += 1
+
+# Define the sentiment categories in the desired order
+sentiment_categories = ['positive', 'negative', 'neutral']
+
+# Define the complete list of emotions from the mapping
+all_emotions = list(emotion_sentiment_mapping.keys())
+
+# Initialize the contingency table with zeros
+contingency_table = np.zeros((len(sentiment_categories), len(all_emotions)), dtype=int)
+
+# Populate the contingency table with emotion frequencies
+for i, sentiment in enumerate(sentiment_categories):
+    for j, emotion in enumerate(all_emotions):
+        if emotion in emotion_frequency[sentiment]:
+            contingency_table[i, j] = emotion_frequency[sentiment][emotion]
+
+# Emotion of interest (column index)
+emotion_index = 0
+significance_results = []
+sig_expected_counts = []
+sig_actual_counts = []
+p_value_results = []
+
+# Extract all sentiment values for the specified emotion (column)
+for emotion in emotion_sentiment_mapping:
+  # print(emotion_index)
+  # print(emotion)
+  sentiment_counts = contingency_table[:, emotion_index]
+  # print(sentiment_counts)
+
+  if np.all(sentiment_counts >= 1):
+      is_significant, chi2_stat, p_val = is_statistically_significant(sentiment_counts, sentiment_frequency)
+
+      print(f"Is the difference statistically significant? for emotion : {emotion}")
+      if is_significant:
+        print("Yes, it was significant")
+        significance_results.append(emotion)
+        p_value_results.append(p_val)
+      else:
+        print("No, it was not significant")
+  else:
+      print(f"Not enough information to perform the chi-squared test for emotion: {emotion}")
+
+  emotion_index += 1
+
+print("Final Post Sentiment Distribution")
+print(sentiment_frequency)
+print("")
+
+print("Final Comment Emotion Distribution for Posts")
+print(emotion_frequency)
+print("")
+
+# Number of Posts analyzed: 600
+#  Post Sentiment Distribution
+# {'positive': 89, 'negative': 91, 'neutral': 420}
+
+# Is the difference statistically significant? for emotion : joy
+# No, it was not significant
+# Is the difference statistically significant? for emotion : optimism
+# No, it was not significant
+# Not enough information to perform the chi-squared test for emotion: amusement
+# Not enough information to perform the chi-squared test for emotion: love
+# Not enough information to perform the chi-squared test for emotion: excitement
+# Expected counts would have been: [12.14814815 12.41223833 57.43961353]
+# Actual counts were: [33  8 41]
+# Is the difference statistically significant? for emotion : admiration
+# Yes, it was significant
+# Not enough information to perform the chi-squared test for emotion: relief
+# Not enough information to perform the chi-squared test for emotion: gratitude
+# Not enough information to perform the chi-squared test for emotion: pride
+# Is the difference statistically significant? for emotion : caring
+# No, it was not significant
+# Is the difference statistically significant? for emotion : approval
+# No, it was not significant
+# Expected counts would have been: [ 217.92592593  222.66344605 1030.41062802]
+# Actual counts were: [ 161  230 1080]
+# Is the difference statistically significant? for emotion : neutral
+# Yes, it was significant
+# Not enough information to perform the chi-squared test for emotion: surprise
+# Is the difference statistically significant? for emotion : realization
+# No, it was not significant
+# Is the difference statistically significant? for emotion : confusion
+# No, it was not significant
+# Expected counts would have been: [18.07407407 18.46698873 85.4589372 ]
+# Actual counts were: [29 31 62]
+# Is the difference statistically significant? for emotion : curiosity
+# Yes, it was significant
+# Is the difference statistically significant? for emotion : disapproval
+# No, it was not significant
+# Not enough information to perform the chi-squared test for emotion: desire
+# Not enough information to perform the chi-squared test for emotion: remorse
+# Is the difference statistically significant? for emotion : disappointment
+# No, it was not significant
+# Is the difference statistically significant? for emotion : annoyance
+# No, it was not significant
+# Not enough information to perform the chi-squared test for emotion: nervousness
+# Not enough information to perform the chi-squared test for emotion: anger
+# Not enough information to perform the chi-squared test for emotion: fear
+# Not enough information to perform the chi-squared test for emotion: embarassment
+# Is the difference statistically significant? for emotion : sadness
+# No, it was not significant
+# Not enough information to perform the chi-squared test for emotion: grief
+# Not enough information to perform the chi-squared test for emotion: disgust
+# Final Post Sentiment Distribution
+# {'positive': 92, 'negative': 94, 'neutral': 435}
+
+# Final Comment Emotion Distribution for Posts
+# {'positive': {'approval': 184, 'neutral': 161, 'excitement': 2, 'admiration': 33, 'curiosity': 29, 'disappointment': 3, 'disapproval': 12, 'optimism': 5, 'caring': 17, 'confusion': 1, 'joy': 4, 'realization': 1, 'annoyance': 1, 'sadness': 1}, 'negative': {'neutral': 230, 'admiration': 8, 'approval': 145, 'curiosity': 31, 'caring': 23, 'disappointment': 5, 'confusion': 1, 'embarrassment': 1, 'disapproval': 14, 'joy': 2, 'sadness': 2, 'optimism': 4, 'annoyance': 1, 'realization': 1}, 'neutral': {'caring': 60, 'approval': 752, 'neutral': 1080, 'sadness': 4, 'admiration': 41, 'disapproval': 76, 'curiosity': 62, 'optimism': 20, 'disappointment': 7, 'confusion': 9, 'joy': 19, 'surprise': 1, 'realization': 13, 'love': 3, 'remorse': 1, 'fear': 1, 'annoyance': 3, 'excitement': 5, 'desire': 1}}
+
+import matplotlib.pyplot as plt
+
+# Calculate the difference between observed and expected counts
+difference = np.array(sig_actual_counts) - np.array(sig_expected_counts)
+
+# Flatten the difference array to a 1D array
+difference_flat = difference.flatten()
+print(difference_flat)
+
+# Define sentiments and corresponding indices for bar plotting
+sentiments = ['Positive', 'Negative', 'Neutral']
+indices = np.arange(len(significance_results) * len(sentiments))  # Indices for x-axis positions
+
+# Define colors based on the sign of the difference
+bar_colors = np.where(difference_flat > 0, 'green', 'red')
+
+# Plotting the bar graph
+plt.figure(figsize=(12, 8))
+bars = plt.bar(indices, difference_flat, color=bar_colors)
+
+# Add labels, title, and legend
+plt.xlabel('Emotion')
+plt.ylabel('Difference (Observed - Expected)')
+plt.title('Difference in Counts for Significant Emotions')
+emotions_repeated = np.repeat(significance_results, 3)
+# plt.xticks(indices, np.tile(significance_results, len(sentiments)), rotation=45, ha='right')  # Set x-axis labels
+plt.xticks(indices, emotions_repeated, rotation=75, ha='right')  # Set x-axis labels
+plt.axhline(0, color='black', linewidth=0.8, linestyle='--')  # Add horizontal line at y=0
+
+# Add annotations for significant differences
+for i, bar, diff in zip(indices, bars, difference_flat):
+    if np.abs(diff) > 0.05 * np.mean(sig_expected_counts):
+        plt.text(i, bar.get_height() + 10, 'Significant', ha='center', va='bottom', color='blue', weight='bold', rotation=45,)
+
+plt.tight_layout()
+plt.show()
+
+"""Llama"""
+
+import pandas as pd
+from scipy.stats import chi2_contingency
+from scipy.stats import chisquare
+
+# Initialize the text classification pipeline for emotion analysis (Go emotions from Hugging Face)
+# (see link above)
+classifier = pipeline(task="text-classification", model="SamLowe/roberta-base-go_emotions", top_k=5)
+
+cmv_df = pd.read_csv('LL*.csv')
+
+# Define the mapping of emotions to sentiment categories
+# From Go Emotions dataset (see link above)
+emotion_sentiment_mapping = {
+    'joy': 'positive',
+    'optimism': 'positive',
+    'amusement': 'positive',
+    'love': 'positive',
+    'excitement': 'positive',
+    'admiration': 'positive',
+    'relief': 'positive',
+    'gratitude': 'positive',
+    'pride': 'positive',
+    'caring': 'positive',
+    'approval': 'positive',
+    'neutral': 'neutral',
+    'surprise': 'neutral',
+    'realization': 'neutral',
+    'confusion': 'neutral',
+    'curiosity': 'neutral',
+    'disapproval': 'negative',
+    'desire': 'negative',
+    'remorse': 'negative',
+    'disappointment': 'negative',
+    'annoyance': 'negative',
+    'nervousness': 'negative',
+    'anger': 'negative',
+    'fear': 'negative',
+    'embarassment': 'negative',
+    'sadness': 'negative',
+    'grief': 'negative',
+    'disgust': 'negative',
+}
+
+# Initialize count var for batch logging progress
+count = 0
+
+# Create a dictionary to store sentiment frequencies
+sentiment_frequency = {'positive': 0, 'negative': 0, 'neutral': 0}
+
+# Create a dictionary to store emotion frequencies for each sentiment category
+emotion_frequency = {'positive': {}, 'negative': {}, 'neutral': {}}
+
+def is_statistically_significant(sentiment_counts, sentiment_frequency):
+    # Calculate the sum of observed frequencies (ie how many times did the emotion show up across all types of posts)
+    observed_sum = sentiment_counts.sum()
+
+    # Calculate the total number of posts
+    total_posts = sum(sentiment_frequency.values())
+
+    # Calculate expected proportions based on post distribution
+    if total_posts > 0:
+        expected_proportions = np.array([sentiment_frequency[key] / total_posts for key in sentiment_frequency.keys()])
+        expected_counts = expected_proportions * observed_sum
+
+    # Perform chi-squared test
+    chi2_stat, p_val = chisquare(sentiment_counts, f_exp=expected_counts)
+
+    # Determine if the test is statistically significant based on the p-value
+    if p_val < 0.05:  # You can adjust the significance level (alpha) as needed
+        print(f"Expected counts would have been: {expected_counts}")
+        sig_expected_counts.append(expected_counts)
+        print(f"Actual counts were: {sentiment_counts}")
+        sig_actual_counts.append(sentiment_counts)
+        return True, chi2_stat, p_val
+    else:
+        return False, chi2_stat, p_val
+
+# Iterate over each row in the DataFrame
+for index, row in cmv_df.iterrows():
+    # Log Progress every 200 batches
+    # if (count / 5) > 199:
+    #     break;
+    if (count / 5) % 25 == 0:
+      print(f"Number of Posts analyzed: {int(count / 5)}")
+      print(" Post Sentiment Distribution")
+      print(sentiment_frequency)
+      print("")
+    # if (count / 5) % 5 == 0:
+    #   print(f"Number of Posts analyzed: {int(count / 5)}")
+    #   print(" Post Sentiment Distribution")
+    #   print(sentiment_frequency)
+    #   print("")
+
+    #   print(" Comment Emotion Distribution for Posts")
+    #   print(emotion_frequency)
+    #   print("")
+
+    # Process the post body for sentiment analysis
+    post_body = str(row['Query'])
+
+    # Truncate post_body if it exceeds 512 characters
+    post_body = post_body[:512]
+
+    if post_body:
+        # print(post_body)
+        # print("")
+        # Analyze emotions of the post body
+        emotions = classifier(post_body)
+
+        # Make sure we have emotions for the post
+        if emotions and len(emotions) > 0 and count % 5 == 0:
+            # print(post_body)
+            # Grab the top emotion for the post body
+            top_emotion_post = emotions[0][0]['label']
+            # print("")
+            # print(top_emotion_post)
+            # print("")
+
+            # print(top_emotion_post)
+            # print("")
+            # print("")
+            if top_emotion_post in emotion_sentiment_mapping:
+                # Convert that top emotion into a sentiment (positive/neutral/negative)
+                # for later analysis
+                post_sentiment = emotion_sentiment_mapping[top_emotion_post]
+
+                # Update sentiment frequency of posts
+                sentiment_frequency[post_sentiment] += 1
+            # print(sentiment_frequency)
+
+        response = row[f'Response']
+        if isinstance(response, str):
+            response = response[:512]
+            # print(response)
+
+            output = classifier(response)
+            # print(output)
+            # Grab emotion labels for each output
+            top_emotion_comment = output[0][0]['label']
+            # Update emotion frequency dictionary
+            if top_emotion_comment not in emotion_frequency[post_sentiment]:
+                # If the emotion does not exist, set freq to be 1 for the emotion
+                emotion_frequency[post_sentiment][top_emotion_comment] = 1
+            else:
+                # Otherwise increment the current count for the emotion
+                emotion_frequency[post_sentiment][top_emotion_comment] += 1
+
+        # increment our overall count that does batch logging
+        count += 1
+
+# Define the sentiment categories in the desired order
+sentiment_categories = ['positive', 'negative', 'neutral']
+
+# Define the complete list of emotions from the mapping
+all_emotions = list(emotion_sentiment_mapping.keys())
+
+# Initialize the contingency table with zeros
+contingency_table = np.zeros((len(sentiment_categories), len(all_emotions)), dtype=int)
+
+# Populate the contingency table with emotion frequencies
+for i, sentiment in enumerate(sentiment_categories):
+    for j, emotion in enumerate(all_emotions):
+        if emotion in emotion_frequency[sentiment]:
+            contingency_table[i, j] = emotion_frequency[sentiment][emotion]
+
+# Emotion of interest (column index)
+emotion_index = 0
+significance_results = []
+sig_expected_counts = []
+sig_actual_counts = []
+p_value_results = []
+
+# Extract all sentiment values for the specified emotion (column)
+for emotion in emotion_sentiment_mapping:
+  # print(emotion_index)
+  # print(emotion)
+  sentiment_counts = contingency_table[:, emotion_index]
+  # print(sentiment_counts)
+
+  if np.all(sentiment_counts >= 1):
+      is_significant, chi2_stat, p_val = is_statistically_significant(sentiment_counts, sentiment_frequency)
+
+      print(f"Is the difference statistically significant? for emotion : {emotion}")
+      if is_significant:
+        print("Yes, it was significant")
+        significance_results.append(emotion)
+        p_value_results.append(p_val)
+      else:
+        print("No, it was not significant")
+  else:
+      print(f"Not enough information to perform the chi-squared test for emotion: {emotion}")
+
+  emotion_index += 1
+
+print("Final Post Sentiment Distribution")
+print(sentiment_frequency)
+print("")
+
+print("Final Comment Emotion Distribution for Posts")
+print(emotion_frequency)
+print("")
+
+# Expected counts would have been: [1.48148148 1.5136876  7.00483092]
+# Actual counts were: [5 1 4]
+# Is the difference statistically significant? for emotion : joy
+# Yes, it was significant
+# Not enough information to perform the chi-squared test for emotion: optimism
+# Is the difference statistically significant? for emotion : amusement
+# No, it was not significant
+# Not enough information to perform the chi-squared test for emotion: love
+# Not enough information to perform the chi-squared test for emotion: excitement
+# Expected counts would have been: [ 8.74074074  8.93075684 41.32850242]
+# Actual counts were: [26  4 29]
+# Is the difference statistically significant? for emotion : admiration
+# Yes, it was significant
+# Not enough information to perform the chi-squared test for emotion: relief
+# Not enough information to perform the chi-squared test for emotion: gratitude
+# Not enough information to perform the chi-squared test for emotion: pride
+# Is the difference statistically significant? for emotion : caring
+# No, it was not significant
+# Expected counts would have been: [ 65.18518519  66.60225443 308.21256039]
+# Actual counts were: [101  54 285]
+# Is the difference statistically significant? for emotion : approval
+# Yes, it was significant
+# Expected counts would have been: [ 335.7037037   343.00161031 1587.29468599]
+# Actual counts were: [ 271  338 1657]
+# Is the difference statistically significant? for emotion : neutral
+# Yes, it was significant
+# Not enough information to perform the chi-squared test for emotion: surprise
+# Not enough information to perform the chi-squared test for emotion: realization
+# Is the difference statistically significant? for emotion : confusion
+# No, it was not significant
+# Expected counts would have been: [1.92592593 1.96779388 9.10628019]
+# Actual counts were: [8 2 3]
+# Is the difference statistically significant? for emotion : curiosity
+# Yes, it was significant
+# Is the difference statistically significant? for emotion : disapproval
+# No, it was not significant
+# Is the difference statistically significant? for emotion : desire
+# No, it was not significant
+# Not enough information to perform the chi-squared test for emotion: remorse
+# Is the difference statistically significant? for emotion : disappointment
+# No, it was not significant
+# Expected counts would have been: [ 4.44444444  4.5410628  21.01449275]
+# Actual counts were: [ 2 22  6]
+# Is the difference statistically significant? for emotion : annoyance
+# Yes, it was significant
+# Not enough information to perform the chi-squared test for emotion: nervousness
+# Not enough information to perform the chi-squared test for emotion: anger
+# Not enough information to perform the chi-squared test for emotion: fear
+# Not enough information to perform the chi-squared test for emotion: embarassment
+# Not enough information to perform the chi-squared test for emotion: sadness
+# Not enough information to perform the chi-squared test for emotion: grief
+# Not enough information to perform the chi-squared test for emotion: disgust
+# Final Post Sentiment Distribution
+# {'positive': 92, 'negative': 94, 'neutral': 435}
+
+# Final Comment Emotion Distribution for Posts
+# {'positive': {'love': 1, 'approval': 101, 'caring': 10, 'annoyance': 2, 'neutral': 271, 'disapproval': 11, 'joy': 5, 'confusion': 1, 'remorse': 1, 'curiosity': 8, 'disappointment': 3, 'admiration': 26, 'desire': 2, 'realization': 1, 'gratitude': 1, 'amusement': 1}, 'negative': {'neutral': 338, 'admiration': 4, 'curiosity': 2, 'desire': 1, 'caring': 8, 'approval': 54, 'annoyance': 22, 'embarrassment': 1, 'amusement': 1, 'disgust': 1, 'disapproval': 12, 'confusion': 3, 'disappointment': 3, 'joy': 1, 'nervousness': 1}, 'neutral': {'neutral': 1657, 'approval': 285, 'desire': 1, 'fear': 1, 'admiration': 29, 'joy': 4, 'excitement': 1, 'curiosity': 3, 'disapproval': 58, 'disappointment': 27, 'confusion': 3, 'caring': 22, 'love': 6, 'optimism': 1, 'annoyance': 6, 'remorse': 1, 'surprise': 1, 'nervousness': 2, 'sadness': 2, 'pride': 1, 'realization': 1, 'amusement': 1}}
+
+import matplotlib.pyplot as plt
+
+# Calculate the difference between observed and expected counts
+difference = np.array(sig_actual_counts) - np.array(sig_expected_counts)
+
+# Flatten the difference array to a 1D array
+difference_flat = difference.flatten()
+print(difference_flat)
+
+# Define sentiments and corresponding indices for bar plotting
+sentiments = ['Positive', 'Negative', 'Neutral']
+indices = np.arange(len(significance_results) * len(sentiments))  # Indices for x-axis positions
+
+# Define colors based on the sign of the difference
+bar_colors = np.where(difference_flat > 0, 'green', 'red')
+
+# Plotting the bar graph
+plt.figure(figsize=(12, 8))
+bars = plt.bar(indices, difference_flat, color=bar_colors)
+
+# Add labels, title, and legend
+plt.xlabel('Emotion')
+plt.ylabel('Difference (Observed - Expected)')
+plt.title('Difference in Counts for Significant Emotions')
+emotions_repeated = np.repeat(significance_results, 3)
+# plt.xticks(indices, np.tile(significance_results, len(sentiments)), rotation=45, ha='right')  # Set x-axis labels
+plt.xticks(indices, emotions_repeated, rotation=75, ha='right')  # Set x-axis labels
+plt.axhline(0, color='black', linewidth=0.8, linestyle='--')  # Add horizontal line at y=0
+
+# Add annotations for significant differences
+for i, bar, diff in zip(indices, bars, difference_flat):
+    if np.abs(diff) > 0.05 * np.mean(sig_expected_counts):
+        plt.text(i, bar.get_height() + 10, 'Significant', ha='center', va='bottom', color='blue', weight='bold', rotation=45,)
+
+plt.tight_layout()
+plt.show()
+
+"""Zephyr"""
+
+import pandas as pd
+from scipy.stats import chi2_contingency
+from scipy.stats import chisquare
+
+# Initialize the text classification pipeline for emotion analysis (Go emotions from Hugging Face)
+# (see link above)
+classifier = pipeline(task="text-classification", model="SamLowe/roberta-base-go_emotions", top_k=5)
+
+cmv_df = pd.read_csv('ZE*.csv')
+
+# Define the mapping of emotions to sentiment categories
+# From Go Emotions dataset (see link above)
+emotion_sentiment_mapping = {
+    'joy': 'positive',
+    'optimism': 'positive',
+    'amusement': 'positive',
+    'love': 'positive',
+    'excitement': 'positive',
+    'admiration': 'positive',
+    'relief': 'positive',
+    'gratitude': 'positive',
+    'pride': 'positive',
+    'caring': 'positive',
+    'approval': 'positive',
+    'neutral': 'neutral',
+    'surprise': 'neutral',
+    'realization': 'neutral',
+    'confusion': 'neutral',
+    'curiosity': 'neutral',
+    'disapproval': 'negative',
+    'desire': 'negative',
+    'remorse': 'negative',
+    'disappointment': 'negative',
+    'annoyance': 'negative',
+    'nervousness': 'negative',
+    'anger': 'negative',
+    'fear': 'negative',
+    'embarassment': 'negative',
+    'sadness': 'negative',
+    'grief': 'negative',
+    'disgust': 'negative',
+}
+
+# Initialize count var for batch logging progress
+count = 0
+
+# Create a dictionary to store sentiment frequencies
+sentiment_frequency = {'positive': 0, 'negative': 0, 'neutral': 0}
+
+# Create a dictionary to store emotion frequencies for each sentiment category
+emotion_frequency = {'positive': {}, 'negative': {}, 'neutral': {}}
+
+def is_statistically_significant(sentiment_counts, sentiment_frequency):
+    # Calculate the sum of observed frequencies (ie how many times did the emotion show up across all types of posts)
+    observed_sum = sentiment_counts.sum()
+
+    # Calculate the total number of posts
+    total_posts = sum(sentiment_frequency.values())
+
+    # Calculate expected proportions based on post distribution
+    if total_posts > 0:
+        expected_proportions = np.array([sentiment_frequency[key] / total_posts for key in sentiment_frequency.keys()])
+        expected_counts = expected_proportions * observed_sum
+
+    # Perform chi-squared test
+    chi2_stat, p_val = chisquare(sentiment_counts, f_exp=expected_counts)
+
+    # Determine if the test is statistically significant based on the p-value
+    if p_val < 0.05:  # You can adjust the significance level (alpha) as needed
+        print(f"Expected counts would have been: {expected_counts}")
+        sig_expected_counts.append(expected_counts)
+        print(f"Actual counts were: {sentiment_counts}")
+        sig_actual_counts.append(sentiment_counts)
+        return True, chi2_stat, p_val
+    else:
+        return False, chi2_stat, p_val
+
+# Iterate over each row in the DataFrame
+for index, row in cmv_df.iterrows():
+    # Log Progress every 200 batches
+    # if (count / 5) > 199:
+    #     break;
+    if (count / 5) % 25 == 0:
+      print(f"Number of Posts analyzed: {int(count / 5)}")
+      print(" Post Sentiment Distribution")
+      print(sentiment_frequency)
+      print("")
+    # if (count / 5) % 5 == 0:
+    #   print(f"Number of Posts analyzed: {int(count / 5)}")
+    #   print(" Post Sentiment Distribution")
+    #   print(sentiment_frequency)
+    #   print("")
+
+    #   print(" Comment Emotion Distribution for Posts")
+    #   print(emotion_frequency)
+    #   print("")
+
+    # Process the post body for sentiment analysis
+    post_body = str(row['Query'])
+
+    # Truncate post_body if it exceeds 512 characters
+    post_body = post_body[:512]
+
+    if post_body:
+        # print(post_body)
+        # print("")
+        # Analyze emotions of the post body
+        emotions = classifier(post_body)
+
+        # Make sure we have emotions for the post
+        if emotions and len(emotions) > 0 and count % 5 == 0:
+            # print(post_body)
+            # Grab the top emotion for the post body
+            top_emotion_post = emotions[0][0]['label']
+            # print("")
+            # print(top_emotion_post)
+            # print("")
+
+            # print(top_emotion_post)
+            # print("")
+            # print("")
+            if top_emotion_post in emotion_sentiment_mapping:
+                # Convert that top emotion into a sentiment (positive/neutral/negative)
+                # for later analysis
+                post_sentiment = emotion_sentiment_mapping[top_emotion_post]
+
+                # Update sentiment frequency of posts
+                sentiment_frequency[post_sentiment] += 1
+            # print(sentiment_frequency)
+
+        response = row[f'Response']
+        if isinstance(response, str):
+            response = response[:512]
+            # print(response)
+
+            output = classifier(response)
+            # print(output)
+            # Grab emotion labels for each output
+            top_emotion_comment = output[0][0]['label']
+            # Update emotion frequency dictionary
+            if top_emotion_comment not in emotion_frequency[post_sentiment]:
+                # If the emotion does not exist, set freq to be 1 for the emotion
+                emotion_frequency[post_sentiment][top_emotion_comment] = 1
+            else:
+                # Otherwise increment the current count for the emotion
+                emotion_frequency[post_sentiment][top_emotion_comment] += 1
+
+        # increment our overall count that does batch logging
+        count += 1
+
+# Define the sentiment categories in the desired order
+sentiment_categories = ['positive', 'negative', 'neutral']
+
+# Define the complete list of emotions from the mapping
+all_emotions = list(emotion_sentiment_mapping.keys())
+
+# Initialize the contingency table with zeros
+contingency_table = np.zeros((len(sentiment_categories), len(all_emotions)), dtype=int)
+
+# Populate the contingency table with emotion frequencies
+for i, sentiment in enumerate(sentiment_categories):
+    for j, emotion in enumerate(all_emotions):
+        if emotion in emotion_frequency[sentiment]:
+            contingency_table[i, j] = emotion_frequency[sentiment][emotion]
+
+# Emotion of interest (column index)
+emotion_index = 0
+significance_results = []
+sig_expected_counts = []
+sig_actual_counts = []
+p_value_results = []
+
+# Extract all sentiment values for the specified emotion (column)
+for emotion in emotion_sentiment_mapping:
+  # print(emotion_index)
+  # print(emotion)
+  sentiment_counts = contingency_table[:, emotion_index]
+  # print(sentiment_counts)
+
+  if np.all(sentiment_counts >= 1):
+      is_significant, chi2_stat, p_val = is_statistically_significant(sentiment_counts, sentiment_frequency)
+
+      print(f"Is the difference statistically significant? for emotion : {emotion}")
+      if is_significant:
+        print("Yes, it was significant")
+        significance_results.append(emotion)
+        p_value_results.append(p_val)
+      else:
+        print("No, it was not significant")
+  else:
+      print(f"Not enough information to perform the chi-squared test for emotion: {emotion}")
+
+  emotion_index += 1
+
+print("Final Post Sentiment Distribution")
+print(sentiment_frequency)
+print("")
+
+print("Final Comment Emotion Distribution for Posts")
+print(emotion_frequency)
+print("")
+
+# Number of Posts analyzed: 600
+#  Post Sentiment Distribution
+# {'positive': 89, 'negative': 91, 'neutral': 420}
+
+# Expected counts would have been: [ 4.2962963   4.38969404 20.31400966]
+# Actual counts were: [10  7 12]
+# Is the difference statistically significant? for emotion : joy
+# Yes, it was significant
+# Is the difference statistically significant? for emotion : optimism
+# No, it was not significant
+# Not enough information to perform the chi-squared test for emotion: amusement
+# Not enough information to perform the chi-squared test for emotion: love
+# Not enough information to perform the chi-squared test for emotion: excitement
+# Expected counts would have been: [ 8.74074074  8.93075684 41.32850242]
+# Actual counts were: [23  2 34]
+# Is the difference statistically significant? for emotion : admiration
+# Yes, it was significant
+# Not enough information to perform the chi-squared test for emotion: relief
+# Not enough information to perform the chi-squared test for emotion: gratitude
+# Not enough information to perform the chi-squared test for emotion: pride
+# Expected counts would have been: [ 8.74074074  8.93075684 41.32850242]
+# Actual counts were: [17  8 34]
+# Is the difference statistically significant? for emotion : caring
+# Yes, it was significant
+# Expected counts would have been: [105.48148148 107.77455717 498.74396135]
+# Actual counts were: [145 125 442]
+# Is the difference statistically significant? for emotion : approval
+# Yes, it was significant
+# Expected counts would have been: [ 303.40740741  310.00322061 1434.58937198]
+# Actual counts were: [ 240  296 1512]
+# Is the difference statistically significant? for emotion : neutral
+# Yes, it was significant
+# Not enough information to perform the chi-squared test for emotion: surprise
+# Is the difference statistically significant? for emotion : realization
+# No, it was not significant
+# Is the difference statistically significant? for emotion : confusion
+# No, it was not significant
+# Expected counts would have been: [ 2.37037037  2.42190016 11.20772947]
+# Actual counts were: [6 4 6]
+# Is the difference statistically significant? for emotion : curiosity
+# Yes, it was significant
+# Expected counts would have been: [ 7.40740741  7.568438   35.02415459]
+# Actual counts were: [ 7 14 29]
+# Is the difference statistically significant? for emotion : disapproval
+# Yes, it was significant
+# Is the difference statistically significant? for emotion : desire
+# No, it was not significant
+# Not enough information to perform the chi-squared test for emotion: remorse
+# Is the difference statistically significant? for emotion : disappointment
+# No, it was not significant
+# Not enough information to perform the chi-squared test for emotion: annoyance
+# Not enough information to perform the chi-squared test for emotion: nervousness
+# Not enough information to perform the chi-squared test for emotion: anger
+# Not enough information to perform the chi-squared test for emotion: fear
+# Not enough information to perform the chi-squared test for emotion: embarassment
+# Is the difference statistically significant? for emotion : sadness
+# No, it was not significant
+# Not enough information to perform the chi-squared test for emotion: grief
+# Not enough information to perform the chi-squared test for emotion: disgust
+# Final Post Sentiment Distribution
+# {'positive': 92, 'negative': 94, 'neutral': 435}
+
+# Final Comment Emotion Distribution for Posts
+# {'positive': {'approval': 145, 'neutral': 240, 'caring': 17, 'disappointment': 1, 'admiration': 23, 'curiosity': 6, 'confusion': 3, 'desire': 1, 'disapproval': 7, 'realization': 1, 'optimism': 2, 'gratitude': 1, 'joy': 10, 'sadness': 1, 'annoyance': 2}, 'negative': {'neutral': 296, 'approval': 125, 'caring': 8, 'disappointment': 2, 'joy': 7, 'disapproval': 14, 'admiration': 2, 'curiosity': 4, 'sadness': 2, 'confusion': 4, 'optimism': 1, 'desire': 2, 'nervousness': 2, 'realization': 1}, 'neutral': {'neutral': 1512, 'disapproval': 29, 'optimism': 12, 'approval': 442, 'admiration': 34, 'caring': 34, 'nervousness': 3, 'realization': 9, 'confusion': 27, 'fear': 3, 'joy': 12, 'love': 2, 'sadness': 11, 'annoyance': 7, 'disappointment': 12, 'curiosity': 6, 'anger': 2, 'excitement': 2, 'gratitude': 2, 'remorse': 5, 'desire': 5, 'amusement': 1}}
+
+import matplotlib.pyplot as plt
+
+# Calculate the difference between observed and expected counts
+difference = np.array(sig_actual_counts) - np.array(sig_expected_counts)
+
+# Flatten the difference array to a 1D array
+difference_flat = difference.flatten()
+print(difference_flat)
+
+# Define sentiments and corresponding indices for bar plotting
+sentiments = ['Positive', 'Negative', 'Neutral']
+indices = np.arange(len(significance_results) * len(sentiments))  # Indices for x-axis positions
+
+# Define colors based on the sign of the difference
+bar_colors = np.where(difference_flat > 0, 'green', 'red')
+
+# Plotting the bar graph
+plt.figure(figsize=(12, 8))
+bars = plt.bar(indices, difference_flat, color=bar_colors)
+
+# Add labels, title, and legend
+plt.xlabel('Emotion')
+plt.ylabel('Difference (Observed - Expected)')
+plt.title('Difference in Counts for Significant Emotions')
+emotions_repeated = np.repeat(significance_results, 3)
+# plt.xticks(indices, np.tile(significance_results, len(sentiments)), rotation=45, ha='right')  # Set x-axis labels
+plt.xticks(indices, emotions_repeated, rotation=75, ha='right')  # Set x-axis labels
+plt.axhline(0, color='black', linewidth=0.8, linestyle='--')  # Add horizontal line at y=0
+
+# Add annotations for significant differences
+for i, bar, diff in zip(indices, bars, difference_flat):
+    if np.abs(diff) > 0.05 * np.mean(sig_expected_counts):
+        plt.text(i, bar.get_height() + 10, 'Significant', ha='center', va='bottom', color='blue', weight='bold', rotation=45,)
+
+plt.tight_layout()
 plt.show()
